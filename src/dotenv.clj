@@ -6,7 +6,10 @@
 (defn- to-pairs [rawstring]
   "converts a string containing the contents of a .env file into a list of pairs"
   (let [lines (str/split-lines rawstring)]
-    (map #(str/split % #"=" 2) lines)))
+    (->> lines
+         (remove #(= "" %)) ; remove empty lines
+         (remove #(str/starts-with? % "#")) ; remove lines starting with # (comments)
+         (map #(str/split % #"=" 2)))))
 
 (defn- load-env-file [filename]
   "loads an env file into a map"
@@ -14,15 +17,14 @@
     (->> filename
          slurp
          to-pairs
-         (into {}) )
+         (into {}))
     {}))
 
 (def base-env
   (into {} [
             (System/getenv)
             (System/getProperties)
-            (load-env-file ".env")
-           ]))
+            (load-env-file ".env")]))
 
 (def app-env-vars ["APP_ENV" "LEIN_ENV" "BOOT_ENV"])
 (def app-env
