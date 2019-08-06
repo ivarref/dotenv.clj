@@ -18,15 +18,30 @@
          to-pairs
          (into {}))))
 
+(def ^:dynamic *override-env* {})
+
 (defn base-env []
   (into {} [(System/getenv)
             (System/getProperties)
-            (load-env-file ".env")]))
+            (load-env-file ".env")
+            *override-env*]))
 
-(defn env
-  ([]
-   (base-env))
+(defn lookup [e k default-value]
+  (get e (name k) default-value))
+
+(defn dev-env
   ([k]
-   (env k nil))
+   (dev-env k nil))
   ([k default-value]
-   (get (base-env) (name k) default-value)))
+   (lookup (base-env) k default-value)))
+
+(def static-env
+  (let [e (base-env)]
+    (fn
+      ([k] (lookup e k nil))
+      ([k default-value] (lookup e k default-value)))))
+
+(def env
+  (if (.exists (io/file ".git"))
+    dev-env
+    static-env))
