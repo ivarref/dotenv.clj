@@ -18,10 +18,13 @@
          to-pairs
          (into {}))))
 
+(def ^:dynamic *override-env* {})
+
 (defn base-env []
   (into {} [(System/getenv)
             (System/getProperties)
-            (load-env-file ".env")]))
+            (load-env-file ".env")
+            *override-env*]))
 
 (defn env
   ([]
