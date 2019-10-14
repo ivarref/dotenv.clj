@@ -21,10 +21,17 @@
 (def ^:dynamic *override-env* {})
 
 (defn base-env []
-  (into {} [(System/getenv)
-            (System/getProperties)
-            (load-env-file ".env")
-            *override-env*]))
+  (into (sorted-map) [(System/getenv)
+                      (System/getProperties)
+                      (load-env-file ".env")
+                      *override-env*]))
+
+(defn namespaced-env []
+  (reduce-kv
+    (fn [o k v]
+      (assoc o (keyword "env" k) v))
+    (sorted-map)
+    (base-env)))
 
 (defn env
   ([]
