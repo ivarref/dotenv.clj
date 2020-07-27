@@ -54,7 +54,7 @@
         (mapcat (fn [[k v]]
                   (when (str/starts-with? k service)
                     (let [k (subs k (count service))]
-                      [[(str/replace k #"(_|-)*" "") v]])))
+                      [[(str/replace k #"^(_|-)*" "") v]])))
                 m)
         (into {} m)
         (map-add-ns m add-ns)))
@@ -70,11 +70,11 @@
                                    "MY_APP__VAR2" "999"
                                    "MY_APPVAR3"   "777"}]
            (env {:service "MY_APP"}))
-         {:VAR1 "123", :VAR2 "999", :VAR3 "777"}))
+         {:VAR1 "123" :VAR2 "999" :VAR3 "777"}))
     (test/is
       (= (binding [*override-env* {"MY_APP_VAR1"  "123"
-                                   "MY_APP__VAR2" "999"
+                                   "MY_APP__VAR2_EXTRA" "999"
                                    "MY_APPVAR3"   777}]
            (env {:service "MY_APP"
                  :add-ns  :env}))
-         #:env{:VAR1 "123", :VAR2 "999", :VAR3 777}))))
+         #:env{:VAR1 "123" :VAR2_EXTRA "999" :VAR3 777}))))
