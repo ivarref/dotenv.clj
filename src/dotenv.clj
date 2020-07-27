@@ -26,33 +26,55 @@
                       (load-env-file ".env")
                       *override-env*]))
 
-(defn map-cut-key-prefix
-  [m prefix]
-  (reduce-kv (fn [o k v]
-               (assoc o (if (str/starts-with? k prefix)
-                          (subs k (count prefix))
-                          k)
-                        v))
-             (sorted-map)
-             m))
-
 (defn map-add-ns
   [m new-ns]
-  (reduce-kv (fn [o k v] (assoc o (keyword (name new-ns) k) v))
+  (reduce-kv (fn [o k v]
+               (assoc o (keyword (some-> new-ns name) k) v))
              (sorted-map)
              m))
+
 (defn env
-  [{:keys [keep-keys cut-prefix add-ns]
-    :or   {keep-keys  #{}
-           add-ns     nil
-           cut-prefix ""}}]
-  (-> (base-env)
-      (map-cut-key-prefix cut-prefix)
-      (select-keys (map name keep-keys))
-      (map-add-ns add-ns)))
+  "Returns a map from System/getenv, System/getProperties, the file `.env`
+  and `*override-env*`. Keeps only keys starting with `service`.
+  Removes `service` prefix and trailing underscore and dashes from keys.
+  Keys are keywordized and an `add-ns` is optionally added as namespace.
+
+  Example:
+  (binding [*override-env* {\"MY_APP_VAR1\"  \"123\"
+                            \"MY_APP__VAR2\" \"999\"}]
+    (env {:service \"MY_APP\"}))
+
+  Will return:
+  {:VAR1 \"123\" :VAR2 \"999\"}
+  "
+  [{:keys [service add-ns]
+    :or   {service ""
+           add-ns  nil}}]
+  (as-> (base-env) m
+        (mapcat (fn [[k v]]
+                  (when (str/starts-with? k service)
+                    (let [k (subs k (count service))]
+                      [[(str/replace k #"(_|-)*" "") v]])))
+                m)
+        (into {} m)
+        (map-add-ns m add-ns)))
 
 (comment
-  (binding [*override-env* {"MY_APP_VAR1" "123"}]
-    (env {:cut-prefix "MY_APP_"
-          :add-ns     :env
-          :keep-keys  #{:VAR1}})))
+  (str/replace "__--A" #"(_|-)*" ""))
+
+(comment
+  (do
+    (require '[clojure.test :as test])
+    (test/is
+      (= (binding [*override-env* {"MY_APP_VAR1"  "123"
+                                   "MY_APP__VAR2" "999"
+                                   "MY_APPVAR3"   "777"}]
+           (env {:service "MY_APP"}))
+         {:VAR1 "123", :VAR2 "999", :VAR3 "777"}))
+    (test/is
+      (= (binding [*override-env* {"MY_APP_VAR1"  "123"
+                                   "MY_APP__VAR2" "999"
+                                   "MY_APPVAR3"   777}]
+           (env {:service "MY_APP"
+                 :add-ns  :env}))
+         #:env{:VAR1 "123", :VAR2 "999", :VAR3 777}))))
